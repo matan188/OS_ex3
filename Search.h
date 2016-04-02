@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string>
 #include "MapReduceClient.h"
+#include "MapReduceFramework.h"
 
 class Query : public k1Base {
     std::string _query;
@@ -46,10 +47,9 @@ public:
 };
 
 class Search: public MapReduceBase {
-    
+    std::list<k2Base*, v2Base*> _mapOutList;
 public:
     void Map(const k1Base *const key, const v1Base *const val) const override;
-    
     void Reduce(const k2Base *const key, const V2_LIST &vals) const override;
 };
 

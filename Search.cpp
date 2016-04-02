@@ -10,23 +10,39 @@ const int MULTI_THREAD_LEVEL = 5;
 int main(int argc, char * argv[])
 {
     
-    Query * q1 = new Query("5");
-    Query * q2 = new Query("2");
-    
-    if(*q1 < *q2) {
-        std::cout << "q1 is smaller than q2" << std::endl;
-    } else {
-        std::cout << "q1 is bigger than q2" << std::endl;
+    for(int i = 0; i < argc; ++i) {
+        std::cout << argv[i] << std::endl;
     }
-    
+    /*
     Search s;
     
-    outItemList = runMapReduceFramework(s, inItemList, MULTI_THREAD_LEVEL);
-
+    std::string query = "q";
     
+    IN_ITEM in_item1(new Query(query), new Directory("dir1"));
+    IN_ITEM in_item2(new Query(query), new Directory("dir2"));
+    IN_ITEM in_item3(new Query(query), new Directory("dir3"));
+    
+    OUT_ITEMS_LIST outItemsList;
+    IN_ITEMS_LIST inItemsList = *(new IN_ITEMS_LIST);
+    
+    inItemsList.push_back(in_item1);
+    inItemsList.push_back(in_item2);
+    inItemsList.push_back(in_item3);
+    
+    outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s), inItemsList, MULTI_THREAD_LEVEL);
+    */
     return 0;
 }
 
 bool Query::operator<(const k1Base &other) const {
     return this->getVal() < (dynamic_cast<const Query&>(other)).getVal();
 };
+
+
+void Search::Map(const k1Base *const key, const v1Base *const val) const {
+    
+}
+    
+void Search::Reduce(const k2Base *const key, const V2_LIST &vals) const {
+
+}
