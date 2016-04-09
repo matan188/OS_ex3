@@ -20,6 +20,7 @@ void * mapExec(void * p) {
     while(true) {
         pthread_mutex_lock(&listIndexMut);
         if(listIndex >= inContainer.size()) {
+            pthread_mutex_unlock(&listIndexMut);
             pthread_exit(NULL);
         }
         currentChunk = listIndex;

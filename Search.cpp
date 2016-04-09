@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <regex>
 
-const int MULTI_THREAD_LEVEL = 5;
+const int MULTI_THREAD_LEVEL = 2;
 
 int getFilesInDir(std::string dir, std::list<std::string> &files) {
     DIR *dp;
