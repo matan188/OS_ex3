@@ -13,8 +13,8 @@ IN_ITEMS_LIST inContainer;
 pthread_mutex_t listIndexMut = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mapInitMut = PTHREAD_MUTEX_INITIALIZER;
 int listIndex = 0;
-std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>>*> midContainers;
-std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>>*> midBufferedContainers;
+std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> midContainers;
+std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> midBufferedContainers;
 std::map<pthread_t, pthread_mutex_t> midContainersMut;
 
 int activeThreads;
@@ -37,7 +37,10 @@ void clearBuffer() {
     for(auto it = m->begin(); it != m->end(); ++it) {
         midContainers[selfId]->push_back(*it);
 
-        //std::cout << "<clearBuffer>" << static_cast<FileName1*>(it->first)->getVal() << std::endl;
+        std::cout << "1" << std::endl;
+
+        //std::cout << "<buf>" << static_cast<FileName1*>((*it)->first)->getVal() << std::endl;
+        //std::cout << "<mid>" << midContainers[selfId]->size() << std::endl;
     }
     m->clear();
     pthread_mutex_unlock(&midContainersMut[selfId]);
@@ -47,8 +50,8 @@ void clearBuffer() {
 void * mapExec(void * p) {
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
-    std::vector<std::pair<k2Base*, v2Base*>> * container = new std::vector<std::pair<k2Base*, v2Base*>>();
-    std::vector<std::pair<k2Base*, v2Base*>> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>>();
+    std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
+    std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
 
     pthread_mutex_lock(&mapInitMut);
     midContainers[pthread_self()] = container;
@@ -93,7 +96,7 @@ void * shuffle(void * p) {
 
 
             for (auto it2 = list->begin(); it2 != list->end(); ++it2) {
-                std::cout << static_cast<FileName1*>(it2->first)->getVal() << std::endl;
+                //std::cout << static_cast<FileName1*>((*it2)->first)->getVal() << std::endl;
             }
 
             if(!list->empty()) {
@@ -101,8 +104,8 @@ void * shuffle(void * p) {
                 auto mut = midContainersMut[key];
                 pthread_mutex_lock(&mut);
                 for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
-                    auto k2 = it2->first;
-                    auto v2 = it2->second;
+                    auto k2 = (*it2)->first;
+                    auto v2 = (*it2)->second;
                     if(postShuffleContainer.count(k2)){
                         postShuffleContainer[k2].push_back(v2);
                     } else {
@@ -182,7 +185,8 @@ void Emit2 (k2Base* k2, v2Base* v2) {
     auto v = midBufferedContainers[pthread_self()];
     v->push_back({k2, v2});
      */
-    midBufferedContainers[pthread_self()]->push_back({k2, v2});
+    auto p = new std::pair<k2Base*, v2Base*>(k2, v2);
+    midBufferedContainers[pthread_self()]->push_back(p);
     //std::cout << static_cast<FileName1*>(k2)->getVal() << std::endl;
 }
 
