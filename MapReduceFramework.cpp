@@ -21,7 +21,7 @@ std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> mapContainers;
 std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> mapBufferedContainers;
 std::map<pthread_t, pthread_mutex_t> mapContainersMut;
 std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*> reduceContainers;
-std::map<k2Base *, V2_LIST, cmpK2Base> postShuffleContainer;
+
 int activeThreads;
 
 struct cmpK2Base {
@@ -29,7 +29,7 @@ struct cmpK2Base {
         return  *a < *b;
     }
 };
-
+std::map<k2Base *, V2_LIST, cmpK2Base> postShuffleContainer;
 
 
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -204,8 +204,18 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /* FINALIZE */
     /************/
 
-
-
+    for(auto it = reduceContainers.begin(); it != reduceContainers.end(); ++it) {
+        auto list = it->second;
+        if(!list->empty()) {
+            // shuffle list
+            for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
+                auto k3 = (*it2)->first;
+                auto v3 = (*it2)->second;
+                outItemsList.push_back({k3, v3});
+            }
+            list->clear();
+        }
+    }
 
     //////////
     std::cout << postShuffleContainer.size() << std::endl;
