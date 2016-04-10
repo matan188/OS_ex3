@@ -10,6 +10,9 @@
 #define CHUNK_SIZE 1
 
 IN_ITEMS_LIST inContainer;
+
+pthread_mutex_t debugMut = PTHREAD_MUTEX_INITIALIZER;
+
 pthread_mutex_t listIndexMut = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mapInitMut = PTHREAD_MUTEX_INITIALIZER;
 int listIndex = 0;
@@ -18,6 +21,10 @@ std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> midBufferedConta
 std::map<pthread_t, pthread_mutex_t> midContainersMut;
 
 int activeThreads;
+
+pthread_mutex_t tMut = PTHREAD_MUTEX_INITIALIZER;
+int tIndex = 0;
+std::vector<int> th = {0,0,0,0,0};
 
 struct cmpK2Base {
     bool operator()(const k2Base * a, const k2Base * b) const {
@@ -32,22 +39,45 @@ pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 void clearBuffer() {
     auto selfId = pthread_self();
+
+    pthread_mutex_lock(&debugMut);
+    //std::cout << "LOCK " << selfId << std::endl;
+    pthread_mutex_unlock(&debugMut);
+
+    std::cout << "LOCK |" << " self: " << selfId << " mutex: " << &midContainersMut[selfId] << std::endl;
     pthread_mutex_lock(&midContainersMut[selfId]);
     auto m = midBufferedContainers[selfId];
     for(auto it = m->begin(); it != m->end(); ++it) {
         midContainers[selfId]->push_back(*it);
 
+        /*
+        pthread_mutex_lock(&debugMut);
+        std::cout << "clearBuffer" << std::endl;
+        pthread_mutex_unlock(&debugMut);
+        */
         std::cout << "1" << std::endl;
 
         //std::cout << "<buf>" << static_cast<FileName1*>((*it)->first)->getVal() << std::endl;
         //std::cout << "<mid>" << midContainers[selfId]->size() << std::endl;
     }
+    auto v = midContainers[selfId];
     m->clear();
     pthread_mutex_unlock(&midContainersMut[selfId]);
+
+
+    pthread_mutex_lock(&debugMut);
+    std::cout << "UNLOCK |" << " self: " << selfId << " mutex: " << &midContainersMut[selfId] << std::endl;
+    pthread_mutex_unlock(&debugMut);
+
     pthread_cond_signal(&cond);
 }
 
 void * mapExec(void * p) {
+
+    pthread_mutex_lock(&debugMut);
+    std::cout << "MAPEXEC START "  << pthread_self() << std::endl;
+    pthread_mutex_unlock(&debugMut);
+
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
     std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
@@ -64,11 +94,17 @@ void * mapExec(void * p) {
         if(listIndex >= inContainer.size()) {
             clearBuffer();
             pthread_mutex_unlock(&listIndexMut);
+
+            pthread_mutex_lock(&tMut);
+            th.at(tIndex) = 1;
+            ++tIndex;
+            pthread_mutex_unlock(&tMut);
+
             pthread_exit(NULL);
         }
         currentChunk = listIndex;
         listIndex += CHUNK_SIZE;
-        std::cout << "Thread " << pthread_self() << " listIndex: " << listIndex << std::endl;
+        //std::cout << "Thread " << pthread_self() << " listIndex: " << listIndex << std::endl;
         pthread_mutex_unlock(&listIndexMut);
         
         auto it = inContainer.begin();
@@ -86,23 +122,35 @@ void * mapExec(void * p) {
 }
 
 void * shuffle(void * p) {
+
+    pthread_mutex_lock(&debugMut);
+    std::cout << "SHUFFLE START" << std::endl;
+    pthread_mutex_unlock(&debugMut);
+
     timespec ts;
     pthread_mutex_t tempMut = PTHREAD_MUTEX_INITIALIZER;
     while(1) {
+
         // search for non empty list
         for(auto it = midContainers.begin(); it != midContainers.end(); ++it) {
+
             pthread_t key = it->first;
             auto list = it->second;
 
-
-            for (auto it2 = list->begin(); it2 != list->end(); ++it2) {
-                //std::cout << static_cast<FileName1*>((*it2)->first)->getVal() << std::endl;
-            }
-
             if(!list->empty()) {
                 // shuffle list
-                auto mut = midContainersMut[key];
-                pthread_mutex_lock(&mut);
+                //std::cout << "error?: " << pthread_mutex_trylock(&mut) << std::endl;
+                if(pthread_mutex_trylock(&midContainersMut[key]) != 0) {
+                    std::cout << "*************** self of criminal: " << key << std::endl;
+                    int u = 0;
+                    while(pthread_mutex_trylock(&midContainersMut[key]) != 0 ) {
+                        if(u % 100000000 == 0) {
+                            std::cout << "self: " << key << " mutex: " << &(midContainersMut[key]) << std::endl;
+                        }
+                        u++;
+                    }
+                }
+
                 for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
                     auto k2 = (*it2)->first;
                     auto v2 = (*it2)->second;
@@ -113,7 +161,7 @@ void * shuffle(void * p) {
                     }
                 }
                 list->clear();
-                pthread_mutex_unlock(&mut);
+                pthread_mutex_unlock(&midContainersMut[key]);
             }
         }
         if(activeThreads <= 0) {
@@ -127,7 +175,7 @@ void * shuffle(void * p) {
         ts.tv_nsec += 10000;
         pthread_cond_timedwait(&cond, &tempMut, &ts);
     }
-    return nullptr;
+    pthread_exit(NULL);
 }
 
 OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
@@ -150,31 +198,44 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /* MAP */
     /*******/
 
+    pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
+
     activeThreads = multiThreadLevel;
     // Create threads
     for(int i = 0; i < multiThreadLevel; ++i) {
         //std::cout << i << std::endl;
         // create ExecMap thread
-        pthread_t p;
-        pthread_create(&p, NULL, mapExec, &mapReduce);
+        pthread_create(&(threadsArray[i]), NULL, mapExec, &mapReduce);
         std::cout << " $ " << std::endl;
-        threads.push_back(&p);
+        //threads.push_back(&p);
     }
     
-    // Join all threads
-    void * x;
-    for(pthread_t * p : threads) {
-        pthread_join(*p, &x);
+
+    for(int i = 0; i < multiThreadLevel; ++i) {
+        pthread_join(threadsArray[i], NULL);
     }
+
+
+    pthread_mutex_lock(&tMut);
+    for(int i = 0; i < th.size(); ++i) {
+        th.at(i) = 2;
+    }
+    pthread_mutex_unlock(&tMut);
+
+    pthread_mutex_lock(&debugMut);
+    std::cout << "JOIN END" << std::endl;
+    pthread_mutex_unlock(&debugMut);
+
     activeThreads = 0;
-    pthread_join(shuffleThread, &x);
-    
+
+
+    pthread_join(shuffleThread, NULL);
+
     // destroy cond
     pthread_cond_destroy(&cond);
 
-
-
     sleep(1);
+
     std::cout << postShuffleContainer.size() << std::endl;
 
     return outItemsList;
