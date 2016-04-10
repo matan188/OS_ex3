@@ -59,7 +59,16 @@ int main(int argc, char * argv[])
     
     outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s),
                                         inItemsList, MULTI_THREAD_LEVEL);
-    
+
+    for(auto it = outItemsList.begin(); it != outItemsList.end(); ++it) {
+        for(int i = 0; i < (static_cast<Counter *>(it->second))->getVal(); ++i) {
+            std::cout << (static_cast<FileName2 *>(it->first)->getVal()) <<
+            std::endl;
+        }
+    }
+
+
+
     return 0;
 }
 

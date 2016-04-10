@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <map>
+#include <algorithm>
 #include <vector>
 #include <unistd.h>
 
@@ -30,6 +31,10 @@ struct cmpK2Base {
     }
 };
 std::map<k2Base *, V2_LIST, cmpK2Base> postShuffleContainer;
+
+bool cmpK3Base (std::pair<k3Base*, v3Base*> a, std::pair<k3Base*, v3Base*> b) {
+    return  a.first < b.first;
+}
 
 
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -219,6 +224,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     //////////
     std::cout << postShuffleContainer.size() << std::endl;
+
+    outItemsList.sort(cmpK3Base);
 
     return outItemsList;
 }
