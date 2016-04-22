@@ -2,17 +2,27 @@
 #include "Search.h"
 #include <pthread.h>
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <map>
 #include <algorithm>
 #include <vector>
 #include <unistd.h>
+#include <ctime>
+#include <sys/time.h>
+#include <iomanip>
+
+//TODO execMap still print after join
+//TODO change file location
+#define FILE_LOCATION "/cs/stud/matanmo/safe/OS/ex3/logFile.txt"
+std::ofstream logFile;
 
 #define CHUNK_SIZE 1
 
 IN_ITEMS_LIST inContainer;
 
 pthread_mutex_t debugMut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t logMut = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t listIndexMut = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mapInitMut = PTHREAD_MUTEX_INITIALIZER;
@@ -36,8 +46,39 @@ bool cmpK3Base (std::pair<k3Base*, v3Base*> a, std::pair<k3Base*, v3Base*> b) {
     return  a.first < b.first;
 }
 
-
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+
+const double S_TO_NANO = 1000000000;
+const double M_TO_NANO = 1000;
+
+/**
+ * Final calculations to return the times measures
+ */
+double timesCalc(double sec1, double micro1, double sec2, double micro2)
+{
+    /* Converting the seconds and microseconds to nanoseconds */
+    double secInNano = (sec2 - sec1) * S_TO_NANO;
+    double microInNano = (micro2 - micro1) * M_TO_NANO;
+
+    return (double) (secInNano + microInNano);
+};
+
+
+/**
+ * Return current time and date for logs
+ */
+std::string  returnTime(){
+    std::time_t rawtime;
+    std::tm* timeinfo;
+    char buffer [80];
+
+    std::time(&rawtime);
+    timeinfo = std::localtime(&rawtime);
+
+    std::strftime(buffer,80,"%d.%m.%Y %H:%M:%S",timeinfo);
+
+    return buffer;
+};
 
 void clearBuffer() {
     auto selfId = pthread_self();
@@ -53,6 +94,14 @@ void clearBuffer() {
 
 void * mapExec(void * p) {
 
+    /* write to log */
+    pthread_mutex_lock(&logMut);
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    logFile << "Thread ExecMap created [" + returnTime() + "]\n";
+    logFile.close();
+    //std::cout << "Thread ExecMap created [" + returnTime() + "]\n" << std::endl;
+    pthread_mutex_unlock(&logMut);
+
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
     std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
@@ -67,6 +116,15 @@ void * mapExec(void * p) {
     while(true) {
         if(listIndex >= inContainer.size()) {
             clearBuffer();
+
+            /* write to log */
+            pthread_mutex_lock(&logMut);
+            logFile.open(FILE_LOCATION, std::ios_base::app);
+            logFile << "Thread ExecMap terminated [" + returnTime() + "]\n";
+            logFile.close();
+            //std::cout << "Thread ExecMap terminated [" + returnTime() + "]\n" << std::endl;
+            pthread_mutex_unlock(&logMut);
+
             pthread_exit(NULL);
         }
         pthread_mutex_lock(&listIndexMut);
@@ -86,9 +144,21 @@ void * mapExec(void * p) {
             clearBuffer();
         }
     }
+
+
+
 }
 
 void * reduceExec(void * p) {
+
+    /* write to log */
+    pthread_mutex_lock(&logMut);
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    logFile << "Thread ExecReduce created [" + returnTime() + "]\n";
+    logFile.close();
+    //std::cout << "Thread ExecReduce created [" + returnTime() + "]\n" << std::endl;
+    pthread_mutex_unlock(&logMut);
+
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
     std::vector<std::pair<k3Base*, v3Base*>*> * container = new std::vector<std::pair<k3Base*, v3Base*>*>();
@@ -99,6 +169,15 @@ void * reduceExec(void * p) {
 
     while(true) {
         if(postShuffleContainerIndex >= postShuffleContainer.size()) {
+
+            /* write to log */
+            pthread_mutex_lock(&logMut);
+            logFile.open(FILE_LOCATION, std::ios_base::app);
+            logFile << "Thread ExecReduce terminated [" + returnTime() + "]\n";
+            logFile.close();
+            //std::cout << "Thread ExecReduce terminated [" + returnTime() + "]\n" << std::endl;
+            pthread_mutex_unlock(&logMut);
+
             pthread_exit(NULL);
         }
         pthread_mutex_lock(&listIndexMut);
@@ -119,6 +198,12 @@ void * reduceExec(void * p) {
 }
 
 void * shuffle(void * p) {
+
+    /* write to log */
+    pthread_mutex_lock(&logMut);
+    std::cout << "Thread Shuffle created [" + returnTime() + "]\n" << std::endl;
+    pthread_mutex_unlock(&logMut);
+
     timespec ts;
     pthread_mutex_t tempMut = PTHREAD_MUTEX_INITIALIZER;
     while(1) {
@@ -155,12 +240,30 @@ void * shuffle(void * p) {
         ts.tv_nsec += 10000; // wait only 0.01 sec at most
         pthread_cond_timedwait(&cond, &tempMut, &ts);
     }
+
     pthread_exit(NULL);
 }
 
 OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
                                      IN_ITEMS_LIST& itemsList,
                                      int multiThreadLevel) {
+
+    /* write to log */
+    pthread_mutex_lock(&logMut);
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    logFile << "runMapReduceFramework started with " << multiThreadLevel
+               << " threads\n";
+    logFile.close();
+    /*std::cout << "runMapReduceFramework started with " << multiThreadLevel
+                                                << " threads\n" << std::endl;
+                                                */
+    pthread_mutex_unlock(&logMut);
+
+    timeval tim;
+    gettimeofday(&tim, NULL);
+    double sec1 = tim.tv_sec;
+    double micro1 = tim.tv_usec;
+
     OUT_ITEMS_LIST outItemsList;
     inContainer = itemsList;
     std::list<pthread_t*> threads;
@@ -186,15 +289,42 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
         pthread_join(threadsArray[i], NULL);
     }
 
+
+    /**** Join SHUFFLE ****/
     activeThreads = 0;
     pthread_join(shuffleThread, NULL);
+
+
+    /* write to log */
+    pthread_mutex_lock(&logMut);
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    logFile << "Thread Shuffle terminated [" + returnTime() + "]\n";
+    logFile.close();
+
+    //std::cout << "Thread Shuffle terminated [" + returnTime() + "]\n" << std::endl;
+    pthread_mutex_unlock(&logMut);
 
     // destroy cond
     pthread_cond_destroy(&cond);
 
+
+    /*** calculate time for log ***/
+    gettimeofday(&tim, NULL);
+    double sec2 = tim.tv_sec;
+    double micro2 = tim.tv_usec;
+
+    long int nanoSeconds = (long int) timesCalc(sec1, micro1, sec2, micro2);
+
+
     /**********/
     /* REDUCE */
     /**********/
+
+    timeval reduceTim;
+    gettimeofday(&reduceTim, NULL);
+    double reduceSec1 = reduceTim.tv_sec;
+    double reduceMicro1 = reduceTim.tv_usec;
+
     // Create threads
     for(int i = 0; i < multiThreadLevel; ++i) {
         pthread_create(&(threadsArray[i]), NULL, reduceExec, &mapReduce);
@@ -223,9 +353,40 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     }
 
     //////////
-    std::cout << postShuffleContainer.size() << std::endl;
+    //std::cout << postShuffleContainer.size() << std::endl;
 
     outItemsList.sort(cmpK3Base);
+
+
+    gettimeofday(&tim, NULL);
+    double reduceSec2 = tim.tv_sec;
+    double reduceMicro2 = tim.tv_usec;
+
+    long int reduceNanoSeconds = (long int) timesCalc(reduceSec1, reduceMicro1, reduceSec2, reduceMicro2);
+
+
+//    sleep(1); //sleep is for checking that the prints are correct
+    /* write to log */
+    pthread_mutex_lock(&logMut);
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    logFile << "Map and Shuffle took " << nanoSeconds << " ns\n";
+    logFile << "Reduce took " << reduceNanoSeconds << " ns\n" ;
+    logFile << "runMapReduceFramework finished\n";
+    logFile.close();
+
+    //std::cout << "Map and Shuffle took " << nanoSeconds << " ns\n" << std::endl;
+    //std::cout << "Reduce took " << reduceNanoSeconds << " ns\n" << std::endl;
+    //std::cout << "runMapReduceFramework finished\n" << std::endl;
+    pthread_mutex_unlock(&logMut);
+
+    /***/
+    /*char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL)
+        std::cout << "Current working dir: " << cwd << std::endl;
+    else
+        std::cout << "getcwd() error" << std::endl;
+    */
+    /***/
 
     return outItemsList;
 }
