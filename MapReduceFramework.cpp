@@ -18,7 +18,7 @@
 #define FILE_LOCATION "/cs/stud/matanmo/safe/OS/ex3/logFile.txt"
 std::ofstream logFile;
 
-#define CHUNK_SIZE 50
+#define CHUNK_SIZE 20
 
 IN_ITEMS_LIST inContainer;
 
@@ -36,10 +36,10 @@ std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*> reduceContainers
 
 int activeThreads;
 
-std::stringstream log;
+std::stringstream logBuffer;
 
 void writeToLog(std::string msg) {
-    log << msg;
+    logBuffer << msg;
 }
 
 struct cmpK2Base {
@@ -100,8 +100,6 @@ void clearBuffer() {
 }
 
 void * mapExec(void * p) {
-
-    std::cout << "mapExec 1" << std::endl;
     
     /* write to log */
     pthread_mutex_lock(&logMut);
@@ -109,22 +107,19 @@ void * mapExec(void * p) {
     //std::cout << "Thread ExecMap created [" + returnTime() + "]\n" << std::endl;
     pthread_mutex_unlock(&logMut);
 
-    std::cout << "mapExec 2" << std::endl;
     
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
     std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
     std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
 
-    std::cout << "mapExec 3" << std::endl;
     
     pthread_mutex_lock(&mapInitMut);
     mapContainers[pthread_self()] = container;
     mapBufferedContainers[pthread_self()] = bufferedContainer;
     mapContainersMut[pthread_self()] = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_unlock(&mapInitMut);
-    
-    std::cout << "mapExec 4" << std::endl;
+
     
     while(true) {
         if(listIndex >= inContainer.size()) {
@@ -277,7 +272,6 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /*******/
     pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
 
-    std::cout << "after map" << std::endl;
     
     activeThreads = multiThreadLevel;
     // Create threads
@@ -289,14 +283,11 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
         pthread_join(threadsArray[i], NULL);
     }
 
-    std::cout << "before join shuffle" << std::endl;
 
     /**** Join SHUFFLE ****/
     activeThreads = 0;
     pthread_join(shuffleThread, NULL);
 
-
-    std::cout << "after join shuffle" << std::endl;
     
     /* write to log */
     pthread_mutex_lock(&logMut);
@@ -384,7 +375,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /***/
     
     logFile.open(FILE_LOCATION, std::ios_base::app);
-    std::string s = log.str();
+    std::string s = logBuffer.str();
     logFile << s;
     logFile.close();
 
