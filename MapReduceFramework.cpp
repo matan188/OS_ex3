@@ -11,6 +11,7 @@
 #include <ctime>
 #include <sys/time.h>
 #include <iomanip>
+#include <sstream>
 
 //TODO execMap still print after join
 //TODO change file location
@@ -34,6 +35,12 @@ std::map<pthread_t, pthread_mutex_t> mapContainersMut;
 std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*> reduceContainers;
 
 int activeThreads;
+
+std::stringstream log;
+
+void writeToLog(std::string msg) {
+    log << msg;
+}
 
 struct cmpK2Base {
     bool operator()(const k2Base * a, const k2Base * b) const {
@@ -94,24 +101,30 @@ void clearBuffer() {
 
 void * mapExec(void * p) {
 
+    std::cout << "mapExec 1" << std::endl;
+    
     /* write to log */
     pthread_mutex_lock(&logMut);
-    logFile.open(FILE_LOCATION, std::ios_base::app);
-    logFile << "Thread ExecMap created [" + returnTime() + "]\n";
-    logFile.close();
+    writeToLog("Thread ExecMap created [" + returnTime() + "]\n");
     //std::cout << "Thread ExecMap created [" + returnTime() + "]\n" << std::endl;
     pthread_mutex_unlock(&logMut);
 
+    std::cout << "mapExec 2" << std::endl;
+    
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
     std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
     std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
 
+    std::cout << "mapExec 3" << std::endl;
+    
     pthread_mutex_lock(&mapInitMut);
     mapContainers[pthread_self()] = container;
     mapBufferedContainers[pthread_self()] = bufferedContainer;
     mapContainersMut[pthread_self()] = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_unlock(&mapInitMut);
+    
+    std::cout << "mapExec 4" << std::endl;
     
     while(true) {
         if(listIndex >= inContainer.size()) {
@@ -119,10 +132,7 @@ void * mapExec(void * p) {
 
             /* write to log */
             pthread_mutex_lock(&logMut);
-            logFile.open(FILE_LOCATION, std::ios_base::app);
-            logFile << "Thread ExecMap terminated [" + returnTime() + "]\n";
-            logFile.close();
-            //std::cout << "Thread ExecMap terminated [" + returnTime() + "]\n" << std::endl;
+            writeToLog("Thread ExecMap terminated [" + returnTime() + "]\n");
             pthread_mutex_unlock(&logMut);
 
             pthread_exit(NULL);
@@ -153,10 +163,7 @@ void * reduceExec(void * p) {
 
     /* write to log */
     pthread_mutex_lock(&logMut);
-    logFile.open(FILE_LOCATION, std::ios_base::app);
-    logFile << "Thread ExecReduce created [" + returnTime() + "]\n";
-    logFile.close();
-    //std::cout << "Thread ExecReduce created [" + returnTime() + "]\n" << std::endl;
+    writeToLog("Thread ExecReduce created [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
 
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
@@ -172,10 +179,7 @@ void * reduceExec(void * p) {
 
             /* write to log */
             pthread_mutex_lock(&logMut);
-            logFile.open(FILE_LOCATION, std::ios_base::app);
-            logFile << "Thread ExecReduce terminated [" + returnTime() + "]\n";
-            logFile.close();
-            //std::cout << "Thread ExecReduce terminated [" + returnTime() + "]\n" << std::endl;
+            writeToLog("Thread ExecReduce terminated [" + returnTime() + "]\n");
             pthread_mutex_unlock(&logMut);
 
             pthread_exit(NULL);
@@ -250,13 +254,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     /* write to log */
     pthread_mutex_lock(&logMut);
-    logFile.open(FILE_LOCATION, std::ios_base::app);
-    logFile << "runMapReduceFramework started with " << multiThreadLevel
-               << " threads\n";
-    logFile.close();
-    /*std::cout << "runMapReduceFramework started with " << multiThreadLevel
-                                                << " threads\n" << std::endl;
-                                                */
+    writeToLog("runMapReduceFramework started with " + std::to_string(multiThreadLevel) + " threads\n");
     pthread_mutex_unlock(&logMut);
 
     timeval tim;
@@ -279,6 +277,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /*******/
     pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
 
+    std::cout << "after map" << std::endl;
+    
     activeThreads = multiThreadLevel;
     // Create threads
     for(int i = 0; i < multiThreadLevel; ++i) {
@@ -289,19 +289,18 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
         pthread_join(threadsArray[i], NULL);
     }
 
+    std::cout << "before join shuffle" << std::endl;
 
     /**** Join SHUFFLE ****/
     activeThreads = 0;
     pthread_join(shuffleThread, NULL);
 
 
+    std::cout << "after join shuffle" << std::endl;
+    
     /* write to log */
     pthread_mutex_lock(&logMut);
-    logFile.open(FILE_LOCATION, std::ios_base::app);
-    logFile << "Thread Shuffle terminated [" + returnTime() + "]\n";
-    logFile.close();
-
-    //std::cout << "Thread Shuffle terminated [" + returnTime() + "]\n" << std::endl;
+    writeToLog("Thread Shuffle terminated [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
 
     // destroy cond
@@ -316,6 +315,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     long int nanoSeconds = (long int) timesCalc(sec1, micro1, sec2, micro2);
 
 
+    std::cout << "before reduce" << std::endl;
+    
     /**********/
     /* REDUCE */
     /**********/
@@ -368,15 +369,9 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 //    sleep(1); //sleep is for checking that the prints are correct
     /* write to log */
     pthread_mutex_lock(&logMut);
-    logFile.open(FILE_LOCATION, std::ios_base::app);
-    logFile << "Map and Shuffle took " << nanoSeconds << " ns\n";
-    logFile << "Reduce took " << reduceNanoSeconds << " ns\n" ;
-    logFile << "runMapReduceFramework finished\n";
-    logFile.close();
-
-    //std::cout << "Map and Shuffle took " << nanoSeconds << " ns\n" << std::endl;
-    //std::cout << "Reduce took " << reduceNanoSeconds << " ns\n" << std::endl;
-    //std::cout << "runMapReduceFramework finished\n" << std::endl;
+    writeToLog("Map and Shuffle took " + std::to_string(nanoSeconds) + " ns\n");
+    writeToLog("Reduce took " + std::to_string(reduceNanoSeconds) + " ns\n");
+    writeToLog("runMapReduceFramework finished\n");
     pthread_mutex_unlock(&logMut);
 
     /***/
@@ -387,6 +382,11 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
         std::cout << "getcwd() error" << std::endl;
     */
     /***/
+    
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    std::string s = log.str();
+    logFile << s;
+    logFile.close();
 
     return outItemsList;
 }
