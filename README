@@ -1,0 +1,34 @@
+matanmo, eyalc
+Matan Modai (305097560), Eyal Cohen (301300372)
+EX: 3
+
+FILES:
+
+
+
+REMARKS:
+
+
+
+ANSWERS:
+1. We create a pipe for each MapExec. Each MapExec writes to it's corresponding 
+pipe and the Suffle reads from all the MapExec pipes. 
+In order for this to work we serialize the object we want to transfer from the 
+MapExec to the Suffle. The Shuffle will deserialize the objects and insert 
+it to the his container. 
+In order to read from all the pipes efficiently, the Shuffle will have a "while"
+loop containing the "select" command. The select command will contain the 
+read fd set of all the ExecMap pipes. This way, we avoid busy-wait of the 
+Shuffle.
+The condition of the "while" loop will be to check that all the MapExec
+are finished running. An issue that might come up is that the select timeout 
+was met and exactly at this moment, the last MapExec finished running (and 
+writing to the pipe) but the while loop won't run again leaving unread
+data in the pipe. In order to prevent this from happening, we will execute 
+one more iteration after the while loop condition is met.
+
+Using the serialization approach, no additional containers\data-structures are 
+needed.
+
+2.
+

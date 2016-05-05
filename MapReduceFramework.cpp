@@ -17,7 +17,7 @@
 #define FILE_LOCATION "/cs/stud/matanmo/safe/OS/ex3/logFile.txt"
 std::ofstream logFile;
 
-#define CHUNK_SIZE 1
+#define CHUNK_SIZE 50
 
 IN_ITEMS_LIST inContainer;
 
@@ -201,7 +201,7 @@ void * shuffle(void * p) {
 
     /* write to log */
     pthread_mutex_lock(&logMut);
-    std::cout << "Thread Shuffle created [" + returnTime() + "]\n" << std::endl;
+    //std::cout << "Thread Shuffle created [" + returnTime() + "]\n" << std::endl;
     pthread_mutex_unlock(&logMut);
 
     timespec ts;
