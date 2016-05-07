@@ -22,6 +22,7 @@ std::ofstream logFile;
 
 IN_ITEMS_LIST inContainer;
 
+//TODO remve debugMut
 pthread_mutex_t debugMut = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t logMut = PTHREAD_MUTEX_INITIALIZER;
 
@@ -201,6 +202,7 @@ void * shuffle(void * p) {
     /* write to log */
     pthread_mutex_lock(&logMut);
     //std::cout << "Thread Shuffle created [" + returnTime() + "]\n" << std::endl;
+    writeToLog("Thread Shuffle created [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
 
     timespec ts;
@@ -217,8 +219,8 @@ void * shuffle(void * p) {
                 // shuffle list
                 pthread_mutex_lock(&mapContainersMut[key]);
                 for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
-                    auto k2 = (*it2)->first;
-                    auto v2 = (*it2)->second;
+                    k2Base* k2 = (*it2)->first;
+                    v2Base* v2 = (*it2)->second;
                     if(postShuffleContainer.count(k2)){
                         postShuffleContainer[k2].push_back(v2);
                     } else {
@@ -295,7 +297,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     pthread_mutex_unlock(&logMut);
 
     // destroy cond
-    pthread_cond_destroy(&cond);
+    //pthread_cond_destroy(&cond);
 
 
     /*** calculate time for log ***/
@@ -305,8 +307,6 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     long int nanoSeconds = (long int) timesCalc(sec1, micro1, sec2, micro2);
 
-
-    std::cout << "before reduce" << std::endl;
     
     /**********/
     /* REDUCE */

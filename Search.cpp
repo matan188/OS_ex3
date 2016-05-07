@@ -49,13 +49,6 @@ int main(int argc, char * argv[])
         inItemsList.push_back(item);
     }
     
-    for(IN_ITEM inItem : inItemsList) {
-        //std::string query = dynamic_cast<Query&>(*inItem.first).getVal();
-        //std::string dir = static_cast<Directory&>(*inItem.second).getVal();
-        //s.Map(inItem.first, inItem.second);
-    }
-    
-    
     
     outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s),
                                         inItemsList, MULTI_THREAD_LEVEL);
@@ -73,14 +66,17 @@ int main(int argc, char * argv[])
 }
 
 bool Query::operator<(const k1Base &other) const {
+    std::cout << "k1base compare" << std::endl;
     return this->getVal() < (dynamic_cast<const Query&>(other)).getVal();
 };
 
 bool FileName1::operator<(const k2Base &other) const {
+    std::cout << "k2base compare" << std::endl;
     return this->getVal() < (dynamic_cast<const FileName1&>(other)).getVal();
 };
 
 bool FileName2::operator<(const k3Base &other) const {
+    std::cout << "k3base compare" << std::endl;
     return this->getVal() < (dynamic_cast<const FileName2&>(other)).getVal();
 };
 
