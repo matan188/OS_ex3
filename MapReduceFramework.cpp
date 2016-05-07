@@ -16,27 +16,27 @@
 //TODO execMap still print after join
 //TODO change file location
 #define FILE_LOCATION "/cs/stud/matanmo/safe/OS/ex3/logFile.txt"
-std::ofstream logFile;
-
 #define CHUNK_SIZE 20
 
-IN_ITEMS_LIST inContainer;
 
-//TODO remve debugMut
+//TODO remove debugMut
 pthread_mutex_t debugMut = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t logMut = PTHREAD_MUTEX_INITIALIZER;
-
 pthread_mutex_t listIndexMut = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mapInitMut = PTHREAD_MUTEX_INITIALIZER;
+
 int listIndex = 0;
 int postShuffleContainerIndex = 0;
+int activeThreads;
+
+IN_ITEMS_LIST inContainer;
 std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> mapContainers;
 std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> mapBufferedContainers;
 std::map<pthread_t, pthread_mutex_t> mapContainersMut;
 std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*> reduceContainers;
 
-int activeThreads;
-
+//TODO to clean the buffer
+std::ofstream logFile;
 std::stringstream logBuffer;
 
 void writeToLog(std::string msg) {
@@ -51,9 +51,10 @@ struct cmpK2Base {
 std::map<k2Base *, V2_LIST, cmpK2Base> postShuffleContainer;
 
 bool cmpK3Base (std::pair<k3Base*, v3Base*> a, std::pair<k3Base*, v3Base*> b) {
-    return  a.first < b.first;
+    return  *(a.first) < *(b.first);
 }
 
+//TODO deal with destroy and double run
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 const double S_TO_NANO = 1000000000;
@@ -378,6 +379,20 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     std::string s = logBuffer.str();
     logFile << s;
     logFile.close();
+
+
+    /* Clear all globals */
+    //TODO make a clean up function for it
+    listIndex = 0;
+    mapContainers.clear();
+    postShuffleContainer.clear();
+    mapBufferedContainers.clear();
+    reduceContainers.clear();
+    inContainer.clear();
+    mapContainersMut.clear();
+    postShuffleContainerIndex = 0;
+    activeThreads = 0;
+
 
     return outItemsList;
 }

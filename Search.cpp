@@ -60,23 +60,31 @@ int main(int argc, char * argv[])
         }
     }
 
+    //###############//
 
+    outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s),
+                                         inItemsList, MULTI_THREAD_LEVEL);
+
+    for(auto it = outItemsList.begin(); it != outItemsList.end(); ++it) {
+        for(int i = 0; i < (static_cast<Counter *>(it->second))->getVal(); ++i) {
+            std::cout << (static_cast<FileName2 *>(it->first)->getVal()) <<
+            std::endl;
+        }
+    }
 
     return 0;
 }
 
+//TODO remove prints
 bool Query::operator<(const k1Base &other) const {
-    std::cout << "k1base compare" << std::endl;
     return this->getVal() < (dynamic_cast<const Query&>(other)).getVal();
 };
 
 bool FileName1::operator<(const k2Base &other) const {
-    std::cout << "k2base compare" << std::endl;
     return this->getVal() < (dynamic_cast<const FileName1&>(other)).getVal();
 };
 
 bool FileName2::operator<(const k3Base &other) const {
-    std::cout << "k3base compare" << std::endl;
     return this->getVal() < (dynamic_cast<const FileName2&>(other)).getVal();
 };
 
