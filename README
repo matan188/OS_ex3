@@ -121,20 +121,20 @@ Thread2 checks if Thread1 locked a, if not, waits for Thread1 to lock it.
 Round Robin:
 Gantt Chart - (p1,2), (p2,1), (p1,2), (p3,2), (p1,2), (p4,2), (p5,1), (p1,2),
 			 (p4,2) ,(p1,2), (p4,8)
-Turnaround time - (18 + 3 + 7 + 26 + 12)/5 = 13.2
+Turnaround time - (18 + 2 + 4 + 19 + 4)/5 = 9.4
 Average wait time - (8 + 1 + 2 + 7 + 3)/5 = 4.2
 
 First Come First Serve:
 Gantt Chart - (p1,10), (p2,1), (p3,2), (p4,12), (p5,1)
-Turnaround time - (10 + 11 + 13 + 25 + 26)/5 = 17
+Turnaround time - (10 + 10 + 10 + 18 + 18)/5 = 13.2
 Average wait time - (0 + 9 + 8 + 6 + 17)/5 = 8
 
 Shortest Remaining Time: 
 Gantt Chart - (p1,1), (p2,1), (p1,1), (p3,2), (p1,3), (p5,1), (p1,5), (p4,12)
-Turnaroung time - (14 + 2 + 5 + 26 + 9)/5 = 11.2
-Average wait time - (3 + 0 + 0 + 7 + 0)/5 = 2
+Turnaroung time - (14 + 1 + 2 + 19 + 1)/5 = 7.4
+Average wait time - (4 + 0 + 0 + 7 + 0)/5 = 2.2
 
 Priority Scheduling:
-Gantt Chart - (p1,10), (p5,1), (p3,2), (p2,1), (p4,12)
-Turnaroung time - (10 + 14 + 13 + 26 + 11)/5 = 14.8
-Average wait time - (0 + 12 + 8 + 7 + 2)/5 = 5.8
+Gantt Chart - (p1,1), (p2,1), (p1,1), (p3,2), (p1,2), (p4,12), (p1,6), (p5,1)
+Turnaroung time - (25 + 1 + 2 + 12 + 18)/5 = 11.6
+Average wait time - (15 + 0 + 0 + 0 + 17)/5 = 6.4
