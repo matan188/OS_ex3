@@ -32,3 +32,109 @@ needed.
 
 2.
 
+3. 
+Nira:
+a. All of the cores except one are not in use so the utilization is low. 
+b. Irreleveant as there is only one core in use. There will always be just one
+thread and one process running.
+c. There is no need to communicate between threads as there is only one.
+d. No ability. If a thread is blocked, the whole program is blocked 
+and there is no ability to progress since there are no other 
+threads\processes.
+e. Low because of a. and d.
+
+
+Moti:
+a. The mutli-core usilization is high\optimized with the assumption that 
+Moti uses an efficient amount of threads. 
+If the thread number is too low, then blocking threads might slow the 
+program down (lower the utilization) significantly.
+If the thread number is too high, the overhead would be high due to
+a lot of context switch.
+b. There is no way to create a sophisticated scheduler as it 
+depends on the used OS.
+c. Because Moti uses single process with multi-thread, sharing data
+between the threads is done on the heap/global variables and therefore 
+the communication 
+between the threads is simple and efficient.
+d. There is an ability, if one thread is blocked, other can still progress.
+e. High because of all of the above.
+
+Danny:
+a. When using user level threads, all the work is done on a single core.
+b. It's possible to create a sophisticates scheduler and it is the main 
+reason to use user level thread over the kernel level threads.
+c. The communication is fast because the data is shared between the threads 
+using the process's heap/global variables.
+d. When using user level threads, it is not possible to progress while a 
+certain thread is blocked. One blocked thread will block the entire process.
+e. For the MapReduceFramework example, this option is the worst. After each 
+step we are joining all the threads, therefore it doesn't matter if short 
+threads end earlier. Therefore the program's ending time is even worse than 
+Nira's as there is more overhead.
+
+Galit:
+a. It is possible to utilize all the cores.
+However, using processes, as opposed to threads, leads to larger overheads due 
+to more expensive context switches and therefore the utilization is lower. 
+b. The schedule depends on the kernel and therefore there is no possibility 
+to create a sophisticated scheduler. 
+c. Communication time is high as there is no easy way to communicate between 
+processes, as opposed to threads. Galit will need to use files, pipes or other
+means in order to communicate between the different processes.
+d. Similar to Moti.
+e. The overall speed would probably be slower than Moti's due to expensive 
+context switches and slower communication between processes but still 
+faster than the others because of utlizing multi-cores and the ability 
+to progress while a process is blocked.
+
+4. Kernel level threads: 
+The global variables and the heap are shared but no the stack.
+
+User level threads: 
+The global variables and the heap are shared but no the stack.
+
+Processes: 
+None of the resources are shared between different processes. 
+
+5. Deadlock:
+Deadlock occurs when more than one process are unable to progress because 
+each is waiting for the others to do something.
+Example - Assuming each thread must lock a and b to progress.
+The following timing will cause deadlock.
+Thread1 locks resource a. 
+Thread2 locks b. 
+Thread2 tries to lock a then waits a to be free. 
+Thread1 tries to lock b and waits until it is free. 
+In this case non of the threads will unlock a or b so no progress 
+will be made.
+
+Livelock:
+Livelock occurs when more than one process keep running, meaning 
+perform calculations but not actual progress is performed. 
+
+Both threads uses a while loop with sleep(10) and then check again.
+Thread1 checks if Thread2 locked a, if not, waits for Thread2 to lock it.
+Thread2 checks if Thread1 locked a, if not, waits for Thread1 to lock it.
+
+6. 
+Round Robin:
+Gantt Chart - (p1,2), (p2,1), (p1,2), (p3,2), (p1,2), (p4,2), (p5,1), (p1,2),
+			 (p4,2) ,(p1,2), (p4,8)
+Turnaround time - (18 + 3 + 7 + 26 + 12)/5 = 13.2
+Average wait time - (8 + 1 + 2 + 7 + 3)/5 = 4.2
+
+First Come First Serve:
+Gantt Chart - (p1,10), (p2,1), (p3,2), (p4,12), (p5,1)
+Turnaround time - (10 + 11 + 13 + 25 + 26)/5 = 17
+Average wait time - (0 + 9 + 8 + 6 + 17)/5 = 8
+
+Shortest Remaining Time: 
+Gantt Chart - (p1,1), (p2,1), (p1,1), (p3,2), (p1,3), (p5,1), (p1,5), (p4,12)
+Turnaroung time - (14 + 2 + 5 + 26 + 9)/5 = 11.2
+Average wait time - (3 + 0 + 0 + 7 + 0)/5 = 2
+
+Priority Scheduling:
+Gantt Chart - (p1,10), (p5,1), (p3,2), (p2,1), (p4,12)
+Turnaroung time - (10 + 14 + 13 + 26 + 11)/5 = 14.8
+Average wait time - (0 + 12 + 8 + 7 + 2)/5 = 5.8
