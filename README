@@ -30,7 +30,15 @@ one more iteration after the while loop condition is met.
 Using the serialization approach, no additional containers\data-structures are 
 needed.
 
-2.
+2. As long as there are no I/O operations, the optimal number of threads is 
+one for each core, which in this case would be 8 threads.
+If we add more thread, the cost will rise due to context switches. 
+If there are I/O operationsm using more than one thread per core. This way,
+while one thread is busy with I/O, others can keep progressing. It's hard 
+to determine the exact optimal amount of threads. The best way would be to run 
+tests in order to determine the optimal amount. 
+
+
 
 3. 
 Nira:
@@ -136,5 +144,5 @@ Average wait time - (4 + 0 + 0 + 7 + 0)/5 = 2.2
 
 Priority Scheduling:
 Gantt Chart - (p1,1), (p2,1), (p1,1), (p3,2), (p1,2), (p4,12), (p1,6), (p5,1)
-Turnaroung time - (25 + 1 + 2 + 12 + 18)/5 = 11.6
+Turnaround time - (25 + 1 + 2 + 12 + 18)/5 = 11.6
 Average wait time - (15 + 0 + 0 + 0 + 17)/5 = 6.4

@@ -20,10 +20,12 @@
 
 
 //TODO remove debugMut
-pthread_mutex_t debugMut = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t logMut = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t listIndexMut = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mapInitMut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t logMut;
+pthread_mutex_t listIndexMut;
+pthread_mutex_t mapInitMut;
+
+//TODO deal with destroy and double run
+pthread_cond_t cond;
 
 int listIndex = 0;
 int postShuffleContainerIndex = 0;
@@ -38,6 +40,13 @@ std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*> reduceContainers
 //TODO to clean the buffer
 std::ofstream logFile;
 std::stringstream logBuffer;
+
+void init() {
+    logMut = PTHREAD_MUTEX_INITIALIZER;
+    listIndexMut = PTHREAD_MUTEX_INITIALIZER;
+    mapInitMut = PTHREAD_MUTEX_INITIALIZER;
+    cond = PTHREAD_COND_INITIALIZER;
+}
 
 void writeToLog(std::string msg) {
     logBuffer << msg;
@@ -54,8 +63,6 @@ bool cmpK3Base (std::pair<k3Base*, v3Base*> a, std::pair<k3Base*, v3Base*> b) {
     return  *(a.first) < *(b.first);
 }
 
-//TODO deal with destroy and double run
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 const double S_TO_NANO = 1000000000;
 const double M_TO_NANO = 1000;
@@ -94,6 +101,7 @@ void clearBuffer() {
     pthread_mutex_lock(&mapContainersMut[selfId]);
     auto m = mapBufferedContainers[selfId];
     for(auto it = m->begin(); it != m->end(); ++it) {
+        //std::cout << "buffer NOT empty" << std::endl;
         mapContainers[selfId]->push_back(*it);
     }
     m->clear();
@@ -217,6 +225,7 @@ void * shuffle(void * p) {
             auto list = it->second;
 
             if(!list->empty()) {
+                //std::cout << "shuffle containers NOT empty" << std::endl;
                 // shuffle list
                 pthread_mutex_lock(&mapContainersMut[key]);
                 for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
@@ -228,8 +237,11 @@ void * shuffle(void * p) {
                         postShuffleContainer[k2] = {v2};
                     }
                 }
+                //TODO check if can delete
                 list->clear();
                 pthread_mutex_unlock(&mapContainersMut[key]);
+            } else {
+                //std::cout << "shuffle containers empty" << std::endl;
             }
         }
         if(activeThreads == 0) {
@@ -249,6 +261,7 @@ void * shuffle(void * p) {
 OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
                                      IN_ITEMS_LIST& itemsList,
                                      int multiThreadLevel) {
+    init();
 
     /* write to log */
     pthread_mutex_lock(&logMut);
@@ -275,7 +288,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /*******/
     pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
 
-    
+
+
     activeThreads = multiThreadLevel;
     // Create threads
     for(int i = 0; i < multiThreadLevel; ++i) {
@@ -296,9 +310,6 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     pthread_mutex_lock(&logMut);
     writeToLog("Thread Shuffle terminated [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
-
-    // destroy cond
-    //pthread_cond_destroy(&cond);
 
 
     /*** calculate time for log ***/
@@ -335,6 +346,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     for(auto it = reduceContainers.begin(); it != reduceContainers.end(); ++it) {
         auto list = it->second;
         if(!list->empty()) {
+            //std::cout << "reduce containers NOT empty" << std::endl;
             // shuffle list
             for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
                 auto k3 = (*it2)->first;
@@ -342,6 +354,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
                 outItemsList.push_back({k3, v3});
             }
             list->clear();
+        } else {
+            //std::cout << "reduce containers empty" << std::endl;
         }
     }
 
@@ -392,6 +406,13 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     mapContainersMut.clear();
     postShuffleContainerIndex = 0;
     activeThreads = 0;
+    pthread_cond_destroy(&cond);
+    pthread_mutex_destroy(&mapInitMut);
+    pthread_mutex_destroy(&logMut);
+    pthread_mutex_destroy(&listIndexMut);
+    logBuffer.str("");
+
+
 
 
     return outItemsList;
