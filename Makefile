@@ -15,7 +15,7 @@ TARGETS = $(LIB) tar
 TAR = tar
 TARFLAGS = -cvf
 TARNAME = ex3.tar
-TARSRCS = $(LIBSRC) Makefile README
+TARSRCS = $(LIBSRC) Makefile README *.jpg 
 
 all: MapReduceFramework.o Search.cpp
 	ar rcs $(LIB) MapReduceFramework.o

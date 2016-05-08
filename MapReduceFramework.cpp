@@ -70,8 +70,6 @@ struct cmpK2Base {
     }
 };
 
-void cleanUp();
-
 std::map<k2Base *, V2_LIST, cmpK2Base> postShuffleContainer;
 
 bool cmpK3Base (std::pair<k3Base*, v3Base*> a, std::pair<k3Base*, v3Base*> b) {
