@@ -55,9 +55,15 @@ int logCounter = 0;
 
 void writeLogToDisk() {
     logFile.open(FILE_LOCATION, std::ios_base::app);
+    if(logFile.fail()) {
+        sysError("open");
+    }
     std::string s = logBuffer.str();
     logFile << s;
     logFile.close();
+    if(logFile.fail()) {
+        sysError("close");
+    }
     logBuffer.str("");
     logCounter = 0;
 }

@@ -14,6 +14,12 @@ typedef std::pair<k2Base*, v2Base*> MID_ITEM;
 typedef std::vector<MID_ITEM> MID_ITEMS_LIST;
 MID_ITEMS_LIST vecMid;
 
+void sysError(std::string errFunc) {
+    std::cerr << "MapReduceFramework Failure: " <<
+    errFunc << " failed." << std::endl;
+    exit(1);
+}
+
 /**
  * Get files from given dir
  */
@@ -21,14 +27,16 @@ int getFilesInDir(std::string dir, std::list<std::string> &files) {
     DIR *dp;
     struct dirent *dirp;
     if((dp  = opendir(dir.c_str())) == NULL) {
-        std::cout << "Error(" << errno << ") opening " << dir << std::endl;
-        return errno;
+        sysError("opendir");
     }
     
     while ((dirp = readdir(dp)) != NULL) {
         files.push_back(std::string(dirp->d_name));
     }
-    closedir(dp);
+    int res = closedir(dp);
+    if(res != 0) {
+        sysError("closedir");
+    }
     return 0;
 }
 
@@ -55,7 +63,16 @@ int main(int argc, char * argv[])
     OUT_ITEMS_LIST outItemsList;
     IN_ITEMS_LIST inItemsList;
     for(std::string dir : directories) {
-        IN_ITEM item(new Query(query), new Directory(dir));
+        
+        Query * q;
+        Directory * d;
+        try {
+            q = new Query(query);
+            d = new Directory(dir);
+        } catch(...) {
+            sysError("new");
+        }
+        IN_ITEM item(q, d);
         inItemsList.push_back(item);
     }
     
@@ -118,7 +135,16 @@ void Search::Map(const k1Base *const key, const v1Base *const val) const {
     std::regex regexPattern(".*" + query + ".*");
     for(std::string str : files) {
         if(std::regex_match(str, regexPattern)) {
-            MID_ITEM item = {new FileName1(str), new Weight(1)};
+            FileName1 * f1;
+            Weight * w;
+            try {
+                f1 = new FileName1(str);
+                w = new Weight(1);
+            } catch(...) {
+                sysError("new");
+            }
+            
+            MID_ITEM item = {f1, w};
             Emit2(item.first, item.second);
             vecMid.push_back(item);
         }
@@ -131,5 +157,15 @@ void Search::Reduce(const k2Base *const key, const V2_LIST &vals) const {
         sum += static_cast<const Weight&>(*val).getVal();
     }
     std::string file = static_cast<const FileName1&>(*key).getVal();
-    Emit3(new FileName2(file), new Counter(sum));
+    
+    FileName2 * f2;
+    Counter * c;
+    try {
+        f2 = new FileName2(file);
+        c = new Counter(sum);
+    } catch(...) {
+        sysError("new");
+    }
+    
+    Emit3(f2, c);
 }
