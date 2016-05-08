@@ -110,7 +110,10 @@ void clearBuffer() {
 }
 
 void * mapExec(void * p) {
-    
+
+    pthread_mutex_lock(&mapInitMut);
+    pthread_mutex_unlock(&mapInitMut);
+
     /* write to log */
     pthread_mutex_lock(&logMut);
     writeToLog("Thread ExecMap created [" + returnTime() + "]\n");
@@ -120,15 +123,10 @@ void * mapExec(void * p) {
     
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
-    std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
-    std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
+
 
     
-    pthread_mutex_lock(&mapInitMut);
-    mapContainers[pthread_self()] = container;
-    mapBufferedContainers[pthread_self()] = bufferedContainer;
-    mapContainersMut[pthread_self()] = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_unlock(&mapInitMut);
+
 
     
     while(true) {
@@ -288,13 +286,20 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /*******/
     pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
 
-
-
+    pthread_mutex_lock(&mapInitMut);
     activeThreads = multiThreadLevel;
     // Create threads
     for(int i = 0; i < multiThreadLevel; ++i) {
         pthread_create(&(threadsArray[i]), NULL, mapExec, &mapReduce);
+
+        std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
+        std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
+
+        mapContainers[threadsArray[i]] = container;
+        mapBufferedContainers[threadsArray[i]] = bufferedContainer;
+        mapContainersMut[threadsArray[i]] = PTHREAD_MUTEX_INITIALIZER;
     }
+    pthread_mutex_unlock(&mapInitMut);
 
     for(int i = 0; i < multiThreadLevel; ++i) {
         pthread_join(threadsArray[i], NULL);
