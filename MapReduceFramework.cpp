@@ -216,9 +216,9 @@ void * reduceExec(void * p) {
 
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
+    std::vector<std::pair<k3Base*, v3Base*>*> * container;
     try {
-        std::vector<std::pair<k3Base*, v3Base*>*> * container =
-                new std::vector<std::pair<k3Base*, v3Base*>*>();
+         container = new std::vector<std::pair<k3Base*, v3Base*>*>();
     } catch(...) {
         sysError("new");
     }
