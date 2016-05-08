@@ -223,7 +223,6 @@ void * reduceExec(void * p) {
         sysError("new");
     }
     
-    
     pthread_mutex_lock(&mapInitMut);
     reduceContainers[pthread_self()] = container;
     pthread_mutex_unlock(&mapInitMut);
@@ -303,6 +302,9 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
                                      IN_ITEMS_LIST& itemsList,
                                      int multiThreadLevel) {
     init();
+    
+    int t_res;
+    
     pthread_mutex_lock(&logMut);
     writeToLog("runMapReduceFramework started with " +
                        std::to_string(multiThreadLevel) + " threads\n");
@@ -320,12 +322,20 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /* SHUFFLE */
     /***********/
     pthread_t shuffleThread;
-    pthread_create(&shuffleThread, NULL, shuffle, nullptr);
+    t_res = pthread_create(&shuffleThread, NULL, shuffle, nullptr);
+    if(t_res != 0) {
+        sysError("pthread_create");
+    }
     
     /*******/
     /* MAP */
     /*******/
-    pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
+    pthread_t * threadsArray;
+    try {
+        threadsArray = new pthread_t[multiThreadLevel]();
+    } catch(...) {
+        sysError("new");
+    }
     
     pthread_mutex_lock(&mapInitMut);
     activeThreads = multiThreadLevel;
@@ -334,11 +344,14 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     for(int i = 0; i < multiThreadLevel; ++i) {
         pthread_create(&(threadsArray[i]), NULL, mapExec, &mapReduce);
 
-        std::vector<std::pair<k2Base*, v2Base*>*> * container =
-                new std::vector<std::pair<k2Base*, v2Base*>*>();
-        std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer =
-                new std::vector<std::pair<k2Base*, v2Base*>*>();
-        
+        std::vector<std::pair<k2Base*, v2Base*>*> * container;
+        std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer;
+        try {
+            container = new std::vector<std::pair<k2Base*, v2Base*>*>();
+            bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
+        } catch(...) {
+            sysError("new");
+        }
         mapContainers[threadsArray[i]] = container;
         mapBufferedContainers[threadsArray[i]] = bufferedContainer;
         mapContainersMut[threadsArray[i]] = PTHREAD_MUTEX_INITIALIZER;
@@ -346,7 +359,10 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     pthread_mutex_unlock(&mapInitMut);
 
     for(int i = 0; i < multiThreadLevel; ++i) {
-        pthread_join(threadsArray[i], NULL);
+        t_res = pthread_join(threadsArray[i], NULL);
+        if(t_res != 0) {
+            sysError("pthread_join");
+        }
     }
 
 
@@ -361,7 +377,10 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
 
     /*** calculate time for log ***/
-    gettimeofday(&tim, NULL);
+    t_res = gettimeofday(&tim, NULL);
+    if(t_res != 0) {
+        sysError("gettimeofday");
+    }
     double sec2 = tim.tv_sec;
     double micro2 = tim.tv_usec;
 
@@ -373,7 +392,10 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /**********/
 
     timeval reduceTim;
-    gettimeofday(&reduceTim, NULL);
+    t_res = gettimeofday(&reduceTim, NULL);
+    if(t_res != 0) {
+        sysError("gettimeofday");
+    }
     double reduceSec1 = reduceTim.tv_sec;
     double reduceMicro1 = reduceTim.tv_usec;
 
@@ -405,8 +427,10 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     outItemsList.sort(cmpK3Base);
 
-
-    gettimeofday(&tim, NULL);
+    t_res = gettimeofday(&tim, NULL);
+    if(t_res != 0) {
+        sysError("gettimeofday");
+    }
     double reduceSec2 = tim.tv_sec;
     double reduceMicro2 = tim.tv_usec;
 
@@ -433,11 +457,21 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
 
 void Emit2 (k2Base* k2, v2Base* v2) {
-    auto p = new std::pair<k2Base*, v2Base*>(k2, v2);
+    std::pair<k2Base*, v2Base*> * p;
+    try {
+        p = new std::pair<k2Base*, v2Base*>(k2, v2);
+    } catch(...) {
+        sysError("new");
+    }
     mapBufferedContainers[pthread_self()]->push_back(p);
 }
 
 void Emit3 (k3Base* k3, v3Base* v3) {
-    auto p = new std::pair<k3Base*, v3Base*>(k3, v3);
+    std::pair<k3Base*, v3Base*> * p;
+    try {
+        p = new std::pair<k3Base*, v3Base*>(k3, v3);
+    } catch(...) {
+        sysError("new");
+    }
     reduceContainers[pthread_self()]->push_back(p);
 }
