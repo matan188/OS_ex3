@@ -263,6 +263,9 @@ void * reduceExec(void * p) {
 
 void * shuffle(void *) {
 
+    pthread_mutex_lock(&mapInitMut);
+    pthread_mutex_unlock(&mapInitMut);
+
     pthread_mutex_lock(&logMut);
     writeToLog("Thread Shuffle created [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
@@ -324,6 +327,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     OUT_ITEMS_LIST outItemsList;
     inContainer = itemsList;
 
+    pthread_mutex_lock(&mapInitMut);
+
     /***********/
     /* SHUFFLE */
     /***********/
@@ -343,7 +348,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
         sysError("new");
     }
     
-    pthread_mutex_lock(&mapInitMut);
+
     activeThreads = multiThreadLevel;
 
     // Create threads

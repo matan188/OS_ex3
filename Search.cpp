@@ -14,7 +14,7 @@ typedef std::pair<k2Base*, v2Base*> MID_ITEM;
 typedef std::vector<MID_ITEM> MID_ITEMS_LIST;
 MID_ITEMS_LIST vecMid;
 
-void sysError(std::string errFunc) {
+void sysError2(std::string errFunc) {
     std::cerr << "MapReduceFramework Failure: " <<
     errFunc << " failed." << std::endl;
     exit(1);
@@ -27,7 +27,7 @@ int getFilesInDir(std::string dir, std::list<std::string> &files) {
     DIR *dp;
     struct dirent *dirp;
     if((dp  = opendir(dir.c_str())) == NULL) {
-        sysError("opendir");
+        sysError2("opendir");
     }
     
     while ((dirp = readdir(dp)) != NULL) {
@@ -35,7 +35,7 @@ int getFilesInDir(std::string dir, std::list<std::string> &files) {
     }
     int res = closedir(dp);
     if(res != 0) {
-        sysError("closedir");
+        sysError2("closedir");
     }
     return 0;
 }
@@ -70,7 +70,7 @@ int main(int argc, char * argv[])
             q = new Query(query);
             d = new Directory(dir);
         } catch(...) {
-            sysError("new");
+            sysError2("new");
         }
         IN_ITEM item(q, d);
         inItemsList.push_back(item);
@@ -141,7 +141,7 @@ void Search::Map(const k1Base *const key, const v1Base *const val) const {
                 f1 = new FileName1(str);
                 w = new Weight(1);
             } catch(...) {
-                sysError("new");
+                sysError2("new");
             }
             
             MID_ITEM item = {f1, w};
@@ -164,7 +164,7 @@ void Search::Reduce(const k2Base *const key, const V2_LIST &vals) const {
         f2 = new FileName2(file);
         c = new Counter(sum);
     } catch(...) {
-        sysError("new");
+        sysError2("new");
     }
     
     Emit3(f2, c);
