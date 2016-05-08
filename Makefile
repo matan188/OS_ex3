@@ -14,10 +14,13 @@ TARGETS = $(LIB) tar
 
 TAR = tar
 TARFLAGS = -cvf
-TARNAME = ex2.tar
+TARNAME = ex3.tar
 TARSRCS = $(LIBSRC) Makefile README
 
-all: $(TARGETS)
+all: MapReduceFramework.o Search.cpp
+	ar rcs $(LIB) MapReduceFramework.o
+	ranlib $(LIB)
+	g++ -Wextra -Wall -std=c++11 -pthread -g $(INCS) Search.cpp $(LIB) -o Search
 
 search: $(LIB) Search.cpp
 	g++ -Wextra -Wall -std=c++11 -pthread -g $(INCS) Search.cpp $(LIB) -o Search
@@ -35,3 +38,4 @@ clean:
 tar:
 	$(TAR) $(TARFLAGS) $(TARNAME) $(TARSRCS)
 	
+

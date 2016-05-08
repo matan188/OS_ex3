@@ -13,18 +13,13 @@
 #include <iomanip>
 #include <sstream>
 
-//TODO execMap still print after join
-//TODO change file location
-#define FILE_LOCATION "/cs/stud/matanmo/safe/OS/ex3/logFile.txt"
+#define FILE_LOCATION ".MapReduceFramework.log"
 #define CHUNK_SIZE 20
 
-
-//TODO remove debugMut
 pthread_mutex_t logMut;
 pthread_mutex_t listIndexMut;
 pthread_mutex_t mapInitMut;
 
-//TODO deal with destroy and double run
 pthread_cond_t cond;
 
 int listIndex = 0;
@@ -32,12 +27,14 @@ int postShuffleContainerIndex = 0;
 int activeThreads;
 
 IN_ITEMS_LIST inContainer;
-std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> mapContainers;
-std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*> mapBufferedContainers;
+std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*>
+                                                        mapContainers;
+std::map<pthread_t, std::vector<std::pair<k2Base*, v2Base*>*>*>
+                                                        mapBufferedContainers;
 std::map<pthread_t, pthread_mutex_t> mapContainersMut;
-std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*> reduceContainers;
+std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*>
+                                                        reduceContainers;
 
-//TODO to clean the buffer
 std::ofstream logFile;
 std::stringstream logBuffer;
 
@@ -48,15 +45,33 @@ void init() {
     cond = PTHREAD_COND_INITIALIZER;
 }
 
+int logCounter = 0;
+
+void writeLogToDisk() {
+    logFile.open(FILE_LOCATION, std::ios_base::app);
+    std::string s = logBuffer.str();
+    logFile << s;
+    logFile.close();
+    logBuffer.str("");
+    logCounter = 0;
+}
+
 void writeToLog(std::string msg) {
     logBuffer << msg;
+    if(logCounter == 100) {
+        writeLogToDisk();
+    }
 }
+
 
 struct cmpK2Base {
     bool operator()(const k2Base * a, const k2Base * b) const {
         return  *a < *b;
     }
 };
+
+void cleanUp();
+
 std::map<k2Base *, V2_LIST, cmpK2Base> postShuffleContainer;
 
 bool cmpK3Base (std::pair<k3Base*, v3Base*> a, std::pair<k3Base*, v3Base*> b) {
@@ -79,6 +94,39 @@ double timesCalc(double sec1, double micro1, double sec2, double micro2)
     return (double) (secInNano + microInNano);
 };
 
+/**
+ * Global variables clean up.
+ */
+void cleanUp() {
+    for(auto it : mapContainers) {
+        delete it.second;
+    }
+
+    for(auto it : mapBufferedContainers) {
+        delete it.second;
+    }
+
+    for(auto it : reduceContainers) {
+        for(auto innerIt : *(it.second)) {
+            delete  innerIt;
+        }
+        delete it.second;
+    }
+    listIndex = 0;
+    mapContainers.clear();
+    postShuffleContainer.clear();
+    mapBufferedContainers.clear();
+    reduceContainers.clear();
+    inContainer.clear();
+    mapContainersMut.clear();
+    postShuffleContainerIndex = 0;
+    activeThreads = 0;
+    pthread_cond_destroy(&cond);
+    pthread_mutex_destroy(&mapInitMut);
+    pthread_mutex_destroy(&logMut);
+    pthread_mutex_destroy(&listIndexMut);
+    logBuffer.str("");
+}
 
 /**
  * Return current time and date for logs
@@ -101,7 +149,6 @@ void clearBuffer() {
     pthread_mutex_lock(&mapContainersMut[selfId]);
     auto m = mapBufferedContainers[selfId];
     for(auto it = m->begin(); it != m->end(); ++it) {
-        //std::cout << "buffer NOT empty" << std::endl;
         mapContainers[selfId]->push_back(*it);
     }
 
@@ -115,10 +162,8 @@ void * mapExec(void * p) {
     pthread_mutex_lock(&mapInitMut);
     pthread_mutex_unlock(&mapInitMut);
 
-    /* write to log */
     pthread_mutex_lock(&logMut);
     writeToLog("Thread ExecMap created [" + returnTime() + "]\n");
-    //std::cout << "Thread ExecMap created [" + returnTime() + "]\n" << std::endl;
     pthread_mutex_unlock(&logMut);
 
     
@@ -130,7 +175,6 @@ void * mapExec(void * p) {
         if(listIndex >= (int) inContainer.size()) {
             clearBuffer();
 
-            /* write to log */
             pthread_mutex_lock(&logMut);
             writeToLog("Thread ExecMap terminated [" + returnTime() + "]\n");
             pthread_mutex_unlock(&logMut);
@@ -144,7 +188,8 @@ void * mapExec(void * p) {
         
         auto it = inContainer.begin();
         std::advance(it, currentChunk);
-        for(int i = currentChunk; i < (int) inContainer.size() && i < currentChunk + CHUNK_SIZE; ++i) {
+        for(int i = currentChunk; i < (int) inContainer.size()
+                                  && i < currentChunk + CHUNK_SIZE; ++i) {
             auto query = it->first;
             auto dir = it->second;
             mapReduce->Map(query, dir);
@@ -161,14 +206,14 @@ void * mapExec(void * p) {
 
 void * reduceExec(void * p) {
 
-    /* write to log */
     pthread_mutex_lock(&logMut);
     writeToLog("Thread ExecReduce created [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
 
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
-    std::vector<std::pair<k3Base*, v3Base*>*> * container = new std::vector<std::pair<k3Base*, v3Base*>*>();
+    std::vector<std::pair<k3Base*, v3Base*>*> * container =
+                new std::vector<std::pair<k3Base*, v3Base*>*>();
 
     pthread_mutex_lock(&mapInitMut);
     reduceContainers[pthread_self()] = container;
@@ -177,9 +222,9 @@ void * reduceExec(void * p) {
     while(true) {
         if(postShuffleContainerIndex >= (int) postShuffleContainer.size()) {
 
-            /* write to log */
             pthread_mutex_lock(&logMut);
-            writeToLog("Thread ExecReduce terminated [" + returnTime() + "]\n");
+            writeToLog("Thread ExecReduce terminated [" + returnTime()
+                       + "]\n");
             pthread_mutex_unlock(&logMut);
 
             pthread_exit(NULL);
@@ -191,7 +236,8 @@ void * reduceExec(void * p) {
 
         auto it = postShuffleContainer.begin();
         std::advance(it, currentChunk);
-        for(int i = currentChunk; i < (int) postShuffleContainer.size() && i < currentChunk + CHUNK_SIZE; ++i) {
+        for(int i = currentChunk; i < (int) postShuffleContainer.size()
+                                  && i < currentChunk + CHUNK_SIZE; ++i) {
             k2Base * filename2 = it->first;
             std::list<v2Base *> counter = it->second;
             mapReduce->Reduce(filename2, counter);
@@ -203,9 +249,7 @@ void * reduceExec(void * p) {
 
 void * shuffle(void *) {
 
-    /* write to log */
     pthread_mutex_lock(&logMut);
-    //std::cout << "Thread Shuffle created [" + returnTime() + "]\n" << std::endl;
     writeToLog("Thread Shuffle created [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
 
@@ -215,13 +259,10 @@ void * shuffle(void *) {
 
         // search for non empty list
         for(auto it = mapContainers.begin(); it != mapContainers.end(); ++it) {
-
             pthread_t key = it->first;
             auto list = it->second;
 
             if(!list->empty()) {
-                //std::cout << "shuffle containers NOT empty" << std::endl;
-                // shuffle list
                 pthread_mutex_lock(&mapContainersMut[key]);
                 for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
                     k2Base* k2 = (*it2)->first;
@@ -232,15 +273,11 @@ void * shuffle(void *) {
                         postShuffleContainer[k2] = {v2};
                     }
                 }
-                //TODO check if can delete
                 list->clear();
                 pthread_mutex_unlock(&mapContainersMut[key]);
-            } else {
-                //std::cout << "shuffle containers empty" << std::endl;
             }
         }
         if(activeThreads == 0) {
-            //break;
             activeThreads--;
         } else if(activeThreads == -1) {
             break;
@@ -257,10 +294,9 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
                                      IN_ITEMS_LIST& itemsList,
                                      int multiThreadLevel) {
     init();
-
-    /* write to log */
     pthread_mutex_lock(&logMut);
-    writeToLog("runMapReduceFramework started with " + std::to_string(multiThreadLevel) + " threads\n");
+    writeToLog("runMapReduceFramework started with " +
+                       std::to_string(multiThreadLevel) + " threads\n");
     pthread_mutex_unlock(&logMut);
 
     timeval tim;
@@ -270,7 +306,6 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     OUT_ITEMS_LIST outItemsList;
     inContainer = itemsList;
-    std::list<pthread_t*> threads;
 
     /***********/
     /* SHUFFLE */
@@ -285,12 +320,15 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     pthread_mutex_lock(&mapInitMut);
     activeThreads = multiThreadLevel;
+
     // Create threads
     for(int i = 0; i < multiThreadLevel; ++i) {
         pthread_create(&(threadsArray[i]), NULL, mapExec, &mapReduce);
 
-        std::vector<std::pair<k2Base*, v2Base*>*> * container = new std::vector<std::pair<k2Base*, v2Base*>*>();
-        std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer = new std::vector<std::pair<k2Base*, v2Base*>*>();
+        std::vector<std::pair<k2Base*, v2Base*>*> * container =
+                new std::vector<std::pair<k2Base*, v2Base*>*>();
+        std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer =
+                new std::vector<std::pair<k2Base*, v2Base*>*>();
 
         mapContainers[threadsArray[i]] = container;
         mapBufferedContainers[threadsArray[i]] = bufferedContainer;
@@ -303,13 +341,11 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     }
 
 
-
     /**** Join SHUFFLE ****/
     activeThreads = 0;
     pthread_join(shuffleThread, NULL);
 
-    
-    /* write to log */
+
     pthread_mutex_lock(&logMut);
     writeToLog("Thread Shuffle terminated [" + returnTime() + "]\n");
     pthread_mutex_unlock(&logMut);
@@ -345,24 +381,18 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /* FINALIZE */
     /************/
 
-    for(auto it = reduceContainers.begin(); it != reduceContainers.end(); ++it) {
+    for(auto it = reduceContainers.begin(); it != reduceContainers.end();
+                                                                    ++it) {
         auto list = it->second;
         if(!list->empty()) {
-            //std::cout << "reduce containers NOT empty" << std::endl;
-            // shuffle list
             for(auto it2 = list->begin(); it2 != list->end(); ++it2) {
                 auto k3 = (*it2)->first;
                 auto v3 = (*it2)->second;
                 outItemsList.push_back({k3, v3});
             }
             list->clear();
-        } else {
-            //std::cout << "reduce containers empty" << std::endl;
         }
     }
-
-    //////////
-    //std::cout << postShuffleContainer.size() << std::endl;
 
     outItemsList.sort(cmpK3Base);
 
@@ -371,71 +401,27 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     double reduceSec2 = tim.tv_sec;
     double reduceMicro2 = tim.tv_usec;
 
-    long int reduceNanoSeconds = (long int) timesCalc(reduceSec1, reduceMicro1, reduceSec2, reduceMicro2);
+    long int reduceNanoSeconds = (long int)
+            timesCalc(reduceSec1, reduceMicro1, reduceSec2, reduceMicro2);
 
-
-//    sleep(1); //sleep is for checking that the prints are correct
     /* write to log */
     pthread_mutex_lock(&logMut);
-    writeToLog("Map and Shuffle took " + std::to_string(nanoSeconds) + " ns\n");
+    writeToLog("Map and Shuffle took " + std::to_string(nanoSeconds)
+               + " ns\n");
     writeToLog("Reduce took " + std::to_string(reduceNanoSeconds) + " ns\n");
     writeToLog("runMapReduceFramework finished\n");
+
+    writeLogToDisk();
+
     pthread_mutex_unlock(&logMut);
 
-    /***/
-    /*char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) != NULL)
-        std::cout << "Current working dir: " << cwd << std::endl;
-    else
-        std::cout << "getcwd() error" << std::endl;
-    */
-    /***/
-    
-    logFile.open(FILE_LOCATION, std::ios_base::app);
-    std::string s = logBuffer.str();
-    logFile << s;
-    logFile.close();
-
-
-    /* Clear all globals */
-    //TODO make a clean up function for it
-
-    for(auto it : mapContainers) {
-        delete it.second;
-    }
-
-    for(auto it : mapBufferedContainers) {
-        delete it.second;
-    }
-
-    for(auto it : reduceContainers) {
-        for(auto innerIt : *(it.second)) {
-            delete  innerIt;
-        }
-        delete it.second;
-    }
-    listIndex = 0;
-    mapContainers.clear();
-    postShuffleContainer.clear();
-    mapBufferedContainers.clear();
-    reduceContainers.clear();
-    inContainer.clear();
-    mapContainersMut.clear();
-    postShuffleContainerIndex = 0;
-    activeThreads = 0;
-    pthread_cond_destroy(&cond);
-    pthread_mutex_destroy(&mapInitMut);
-    pthread_mutex_destroy(&logMut);
-    pthread_mutex_destroy(&listIndexMut);
-    logBuffer.str("");
+    /* clean up variables */
+    cleanUp();
     delete[] threadsArray;
-
-
-
-
 
     return outItemsList;
 }
+
 
 void Emit2 (k2Base* k2, v2Base* v2) {
     auto p = new std::pair<k2Base*, v2Base*>(k2, v2);

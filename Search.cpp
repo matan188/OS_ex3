@@ -14,6 +14,9 @@ typedef std::pair<k2Base*, v2Base*> MID_ITEM;
 typedef std::vector<MID_ITEM> MID_ITEMS_LIST;
 MID_ITEMS_LIST vecMid;
 
+/**
+ * Get files from given dir
+ */
 int getFilesInDir(std::string dir, std::list<std::string> &files) {
     DIR *dp;
     struct dirent *dirp;
@@ -29,6 +32,9 @@ int getFilesInDir(std::string dir, std::list<std::string> &files) {
     return 0;
 }
 
+/**
+ * Main program
+ */
 int main(int argc, char * argv[])
 {
     
@@ -57,19 +63,20 @@ int main(int argc, char * argv[])
     outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s),
                                         inItemsList, MULTI_THREAD_LEVEL);
 
-
+    /* Print final output */
     for(auto it = outItemsList.begin(); it != outItemsList.end(); ++it) {
-        for(int i = 0; i < (static_cast<Counter *>(it->second))->getVal(); ++i) {
+        for(int i = 0; i < (static_cast<Counter *>(it->second))->getVal();
+            ++i) {
             std::cout << (static_cast<FileName2 *>(it->first)->getVal()) <<
             std::endl;
         }
     }
 
+    /* Delete allocations */
     for(auto it : inItemsList) {
         delete it.first;
         delete it.second;
     }
-
 
     for(auto it : outItemsList) {
         delete it.first;
@@ -84,7 +91,7 @@ int main(int argc, char * argv[])
     return 0;
 }
 
-//TODO remove prints
+
 bool Query::operator<(const k1Base &other) const {
     return this->getVal() < (dynamic_cast<const Query&>(other)).getVal();
 };
@@ -96,6 +103,7 @@ bool FileName1::operator<(const k2Base &other) const {
 bool FileName2::operator<(const k3Base &other) const {
     return this->getVal() < (dynamic_cast<const FileName2&>(other)).getVal();
 };
+
 
 Search::Search() {
 }
@@ -110,8 +118,6 @@ void Search::Map(const k1Base *const key, const v1Base *const val) const {
     std::regex regexPattern(".*" + query + ".*");
     for(std::string str : files) {
         if(std::regex_match(str, regexPattern)) {
-            /*typedef std::pair<k2Base*, v2Base*> MID_ITEM;
-            typedef std::list<MID_ITEM> MID_ITEMS_LIST;*/
             MID_ITEM item = {new FileName1(str), new Weight(1)};
             Emit2(item.first, item.second);
             vecMid.push_back(item);

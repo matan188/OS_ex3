@@ -3,10 +3,32 @@ Matan Modai (305097560), Eyal Cohen (301300372)
 EX: 3
 
 FILES:
+README - this file
+
+MapReduceFramework.cpp - 
+
+Search.h - 
+
+Search.cpp - 
+
+Makefile - 
+
+RoundRobinGanttChart.jpg
+FCFSGanttChart.jpg
+SRTFGanttChart.jpg
+PrioritySchedulingGanttChart.jpg
 
 
 
 REMARKS:
+The design is similar to the exercise description, the only major change is 
+creating a buffer containers between mapExec and Shuffle. This way we transfer
+the data through chunks and not one by one.
+
+The containers we used are maps which keys are pthread_t. This way each thread
+has its own container and the access is faster - O(1).
+
+We used a buffer in order to minimize the number of accesses to the log file.
 
 
 
@@ -37,7 +59,6 @@ If there are I/O operationsm using more than one thread per core. This way,
 while one thread is busy with I/O, others can keep progressing. It's hard 
 to determine the exact optimal amount of threads. The best way would be to run 
 tests in order to determine the optimal amount. 
-
 
 
 3. 
