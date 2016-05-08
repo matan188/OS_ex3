@@ -38,6 +38,12 @@ std::map<pthread_t, std::vector<std::pair<k3Base*, v3Base*>*>*>
 std::ofstream logFile;
 std::stringstream logBuffer;
 
+void sysError(std::string errFunc) {
+    std::cerr << "MapReduceFramework Failure: " <<
+        errFunc << " failed." << std::endl;
+    exit(1);
+}
+
 void init() {
     logMut = PTHREAD_MUTEX_INITIALIZER;
     listIndexMut = PTHREAD_MUTEX_INITIALIZER;
@@ -210,9 +216,14 @@ void * reduceExec(void * p) {
 
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
-    std::vector<std::pair<k3Base*, v3Base*>*> * container =
+    try {
+        std::vector<std::pair<k3Base*, v3Base*>*> * container =
                 new std::vector<std::pair<k3Base*, v3Base*>*>();
-
+    } catch(...) {
+        sysError("new");
+    }
+    
+    
     pthread_mutex_lock(&mapInitMut);
     reduceContainers[pthread_self()] = container;
     pthread_mutex_unlock(&mapInitMut);
@@ -315,7 +326,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     /* MAP */
     /*******/
     pthread_t * threadsArray = new pthread_t[multiThreadLevel]();
-
+    
     pthread_mutex_lock(&mapInitMut);
     activeThreads = multiThreadLevel;
 
@@ -327,7 +338,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
                 new std::vector<std::pair<k2Base*, v2Base*>*>();
         std::vector<std::pair<k2Base*, v2Base*>*> * bufferedContainer =
                 new std::vector<std::pair<k2Base*, v2Base*>*>();
-
+        
         mapContainers[threadsArray[i]] = container;
         mapBufferedContainers[threadsArray[i]] = bufferedContainer;
         mapContainersMut[threadsArray[i]] = PTHREAD_MUTEX_INITIALIZER;
