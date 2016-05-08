@@ -10,6 +10,10 @@
 
 const int MULTI_THREAD_LEVEL = 5;
 
+typedef std::pair<k2Base*, v2Base*> MID_ITEM;
+typedef std::vector<MID_ITEM> MID_ITEMS_LIST;
+MID_ITEMS_LIST vecMid;
+
 int getFilesInDir(std::string dir, std::list<std::string> &files) {
     DIR *dp;
     struct dirent *dirp;
@@ -53,6 +57,7 @@ int main(int argc, char * argv[])
     outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s),
                                         inItemsList, MULTI_THREAD_LEVEL);
 
+
     for(auto it = outItemsList.begin(); it != outItemsList.end(); ++it) {
         for(int i = 0; i < (static_cast<Counter *>(it->second))->getVal(); ++i) {
             std::cout << (static_cast<FileName2 *>(it->first)->getVal()) <<
@@ -60,16 +65,20 @@ int main(int argc, char * argv[])
         }
     }
 
-    //###############//
+    for(auto it : inItemsList) {
+        delete it.first;
+        delete it.second;
+    }
 
-    outItemsList = runMapReduceFramework(dynamic_cast<MapReduceBase&>(s),
-                                         inItemsList, MULTI_THREAD_LEVEL);
 
-    for(auto it = outItemsList.begin(); it != outItemsList.end(); ++it) {
-        for(int i = 0; i < (static_cast<Counter *>(it->second))->getVal(); ++i) {
-            std::cout << (static_cast<FileName2 *>(it->first)->getVal()) <<
-            std::endl;
-        }
+    for(auto it : outItemsList) {
+        delete it.first;
+        delete it.second;
+    }
+
+    for(auto it : vecMid) {
+        delete it.first;
+        delete it.second;
     }
 
     return 0;
@@ -89,7 +98,6 @@ bool FileName2::operator<(const k3Base &other) const {
 };
 
 Search::Search() {
-    _mapOutList = new MID_ITEMS_LIST;
 }
 
 
@@ -101,12 +109,12 @@ void Search::Map(const k1Base *const key, const v1Base *const val) const {
     
     std::regex regexPattern(".*" + query + ".*");
     for(std::string str : files) {
-        //std::cout << str << std::endl;
         if(std::regex_match(str, regexPattern)) {
-            //std::cout << str << std::endl;
-            //MID_ITEM item(new FileName1(str), new Weight(1));
-            //_mapOutList->push_back(item);
-            Emit2(new FileName1(str), new Weight(1));
+            /*typedef std::pair<k2Base*, v2Base*> MID_ITEM;
+            typedef std::list<MID_ITEM> MID_ITEMS_LIST;*/
+            MID_ITEM item = {new FileName1(str), new Weight(1)};
+            Emit2(item.first, item.second);
+            vecMid.push_back(item);
         }
     }
 }

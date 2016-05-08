@@ -104,6 +104,7 @@ void clearBuffer() {
         //std::cout << "buffer NOT empty" << std::endl;
         mapContainers[selfId]->push_back(*it);
     }
+
     m->clear();
     pthread_mutex_unlock(&mapContainersMut[selfId]);
     pthread_cond_signal(&cond);
@@ -124,13 +125,9 @@ void * mapExec(void * p) {
     MapReduceBase * mapReduce = (MapReduceBase*)(p);
     int currentChunk;
 
-
-    
-
-
     
     while(true) {
-        if(listIndex >= inContainer.size()) {
+        if(listIndex >= (int) inContainer.size()) {
             clearBuffer();
 
             /* write to log */
@@ -147,7 +144,7 @@ void * mapExec(void * p) {
         
         auto it = inContainer.begin();
         std::advance(it, currentChunk);
-        for(int i = currentChunk; i < inContainer.size() && i < currentChunk + CHUNK_SIZE; ++i) {
+        for(int i = currentChunk; i < (int) inContainer.size() && i < currentChunk + CHUNK_SIZE; ++i) {
             auto query = it->first;
             auto dir = it->second;
             mapReduce->Map(query, dir);
@@ -178,7 +175,7 @@ void * reduceExec(void * p) {
     pthread_mutex_unlock(&mapInitMut);
 
     while(true) {
-        if(postShuffleContainerIndex >= postShuffleContainer.size()) {
+        if(postShuffleContainerIndex >= (int) postShuffleContainer.size()) {
 
             /* write to log */
             pthread_mutex_lock(&logMut);
@@ -194,9 +191,9 @@ void * reduceExec(void * p) {
 
         auto it = postShuffleContainer.begin();
         std::advance(it, currentChunk);
-        for(int i = currentChunk; i < postShuffleContainer.size() && i < currentChunk + CHUNK_SIZE; ++i) {
-            auto filename2 = it->first;
-            auto counter = it->second;
+        for(int i = currentChunk; i < (int) postShuffleContainer.size() && i < currentChunk + CHUNK_SIZE; ++i) {
+            k2Base * filename2 = it->first;
+            std::list<v2Base *> counter = it->second;
             mapReduce->Reduce(filename2, counter);
             ++it;
         }
@@ -204,7 +201,7 @@ void * reduceExec(void * p) {
 
 }
 
-void * shuffle(void * p) {
+void * shuffle(void *) {
 
     /* write to log */
     pthread_mutex_lock(&logMut);
@@ -306,6 +303,7 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     }
 
 
+
     /**** Join SHUFFLE ****/
     activeThreads = 0;
     pthread_join(shuffleThread, NULL);
@@ -342,7 +340,6 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     for(int i = 0; i < multiThreadLevel; ++i) {
         pthread_join(threadsArray[i], NULL);
     }
-    delete[] threadsArray;
 
     /************/
     /* FINALIZE */
@@ -402,6 +399,21 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
 
     /* Clear all globals */
     //TODO make a clean up function for it
+
+    for(auto it : mapContainers) {
+        delete it.second;
+    }
+
+    for(auto it : mapBufferedContainers) {
+        delete it.second;
+    }
+
+    for(auto it : reduceContainers) {
+        for(auto innerIt : *(it.second)) {
+            delete  innerIt;
+        }
+        delete it.second;
+    }
     listIndex = 0;
     mapContainers.clear();
     postShuffleContainer.clear();
@@ -416,6 +428,8 @@ OUT_ITEMS_LIST runMapReduceFramework(MapReduceBase& mapReduce,
     pthread_mutex_destroy(&logMut);
     pthread_mutex_destroy(&listIndexMut);
     logBuffer.str("");
+    delete[] threadsArray;
+
 
 
 

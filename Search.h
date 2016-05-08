@@ -51,11 +51,9 @@ public:
     int getVal() const { return _counter; };
 };
 
-typedef std::pair<k2Base*, v2Base*> MID_ITEM;
-typedef std::list<MID_ITEM> MID_ITEMS_LIST;
+
 
 class Search: public MapReduceBase {
-    MID_ITEMS_LIST * _mapOutList;
 public:
     Search();
     void Map(const k1Base *const key, const v1Base *const val) const override;
